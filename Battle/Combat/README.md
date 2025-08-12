@@ -1,28 +1,19 @@
 # ⚔️ Battle/Combat — 전투 코어
 
-턴 기반 전투의 **라운드 진행**, **AI 행동**, **데미지/실드/버프 계산**을 담당합니다. 전투 시작/종료, 이벤트 브로드캐스트까지 코어 루프가 모두 여기에 있습니다.
-
----
-
-## 📦 폴더 구조
-```
- ├── CombatManager.cs
- ├── EnemyAI.cs
- ├── TurnManager.cs
-```
+턴 기반 전투의 **라운드 진행**, **AI 행동**, **데미지/실드/버프 계산**, **승패 판정**을 담당합니다. 이벤트 드리븐으로 UI/애니메이션과 느슨하게 결합되어 있습니다.
 
 ---
 
 ## ✨ 설계 특징 (Highlights)
-- 이벤트 기반 구조: `OnCombatStart/End`, `OnPlayerSkillUsed/OnEnemySkillUsed`
-- 분리된 책임: 턴은 `TurnManager`, 의사결정은 `EnemyAI`, 계산은 `CombatManager`
-- 가시성: UI/애니메이션 레이어로 이벤트만 발행하여 결합도 최소화
-- 확장 포인트: 카드/스킬 추가 시 `ApplySkill` 분기만 확장
+- 🔔 이벤트: `OnCombatStart/End`, `OnPlayerSkillUsed/OnEnemySkillUsed` 발행
+- 🧠 책임 분리: 턴=`TurnManager`, AI=`EnemyAI`, 계산=`CombatManager`
+- 🔌 확장: 카드/스킬 추가 시 `ApplySkill` 분기만 확장
+- 🧱 내결함성: 승패/예외 상황에서도 루프 종료 보장
 
 ---
 
 ## 🔁 핵심 흐름
-StartCombat → Player Turn → UseCard/ApplySkill → Enemy Turn → CheckWinLose
+StartCombat → StartPlayerTurn → UseCard/ApplySkill → StartEnemyTurn → CheckWinLose → EndCombat
 
 ---
 
@@ -87,6 +78,113 @@ public void ApplySkill(CardData data, bool isPlayer)
         {
             if (isPlayer)
             {
-               
-// (이하 생략)
+                int shielded = Mathf.Min(enemyShield, rawAttack);
+                enemyShield -= shielded;
+                
+                // 적 데미지
+                enemyHp     = Mathf.Max(0, enemyHp - (rawAttack - shielded));
+                
+                // 적 피격 이벤트
+                OnEnemyHit?.Invoke();
+                
+                if (enemyHp <= 0)
+                    OnEnemyDeath?.Invoke();
+            }
+            else
+            {
+                int shielded = Mathf.Min(playerShield, rawAttack);
+                playerShield -= shielded;
+                
+                // 반사 : 실제 입힌(rawAttack)양의 50%를 돌려주기
+                if (playerReflectPercent > 0f && rawAttack > 0)
+                {
+                    int reflectDamage = Mathf.RoundToInt(rawAttack * playerReflectPercent);
+                    SpecialAttack(reflectDamage);
+                }
+                
+                // 플레이어 데미지
+                playerHp     = Mathf.Max(0, playerHp - (rawAttack - shielded));
+                // 플레이어 피격 이벤트
+                OnPlayerHit?.Invoke();
+                
+                if (playerHp <= 0)
+                    OnPlayerDeath?.Invoke();
+            }
+        }
+
+        // 보호막 효과
+        if (data.effectShieldValue > 0)
+        {
+            // 기본 획득 보호막
+            int shieldGain = data.effectShieldValue;
+            
+            // 환경 효과가 적용되면 multiplier 곱하기
+            if (applyEnv && currentEnvironment != null)
+                shieldGain = Mathf.FloorToInt(shieldGain * currentEnvironment.shieldMultiplier);
+            
+            if (isPlayer)
+                playerShield += shieldGain;
+            else
+                enemyShield  += shieldGain;
+        }
+
+        // 공격력 버프
+        if (data.effectAttackIncreaseValue != 0 && data.effectTurnValue > 0)
+        {
+            AddAttackModifier(
+                isPlayer,
+                ModifierType.AttackBuff,
+                data.effectAttackIncreaseValue,
+                data.effectTurnValue
+            );
+            OnStatusEffectApplied?.Invoke(isPlayer, true); // 강화 이펙트
+        }
+
+        // 공격력 디버프
+        if (data.effectAttackDebuffValue != 0 && data.effectTurnValue > 0)
+        {
+            // 원래 디버프 값
+            int rawDebuff = Mathf.Abs(data.effectAttackDebuffValue);
+            
+            // 환경이 발동되면 multiplier 곱하기
+            int debuffValue = applyEnv
+                ? Mathf.FloorToInt(rawDebuff * currentEnvironment.debuffMultiplier)
+                : rawDebuff;
+            
+            AddAttackModifier(
+                !isPlayer,
+                ModifierType.AttackDebuff,
+                -debuffValue,
+                data.effectTurnValue
+            );
+            
+            OnStatusEffectApplied?.Invoke(!isPlayer, false); // 약화 이펙트
+        }
+
+        RecalculateModifiers();
+        OnStatsChanged?.Invoke();
+        CheckEnd();
+    }
+
+// ...
+
+private bool ShouldApplyEnvEffect()
+    {
+        // 환경이 없으면 false
+        if (currentEnvironment == null) 
+            return false;
+
+        // effectId가 fog면 40%확률로 발동
+        if (currentEnvironment.effectId == "fog")
+            return UnityEngine.Random.value <= 0.4f;  // 40% 확률
+
+        return true;  // wind, rain 등은 항상 적용
+    }
 ```
+
+---
+
+## 📐 설계 메모
+- 단방향 흐름 유지
+- CombatManager만 수치 변경
+- ApplySkill 계산/애니 분리

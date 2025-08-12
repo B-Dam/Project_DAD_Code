@@ -1,26 +1,16 @@
 # 📚 Battle/Tutorial — 튜토리얼
 
-스텝 단위로 UI 하이라이트, 입력 가이드, 조건 검증을 수행합니다.
-
----
-
-## 📦 폴더 구조
-```
- ├── TutorialManager.cs
- ├── TutorialStep.cs
-```
+튜토리얼 모듈 설명입니다.
 
 ---
 
 ## ✨ 설계 특징 (Highlights)
-- Canvas 마스킹으로 포커스 영역 강조
-- 타이핑 효과/메시지 진행, 스텝별 콜백
-- 전투 시스템과 느슨한 결합(이벤트 구독)
+- (추가 예정)
 
 ---
 
 ## 🔁 핵심 흐름
-Start → Show Step → Wait Condition → Next Step
+StartTutorial → ShowStep → WaitCondition → NextStep
 
 ---
 
@@ -87,6 +77,51 @@ public void ShowStep(int i)
         {
             // 전체 가림 모드 → topPanel 하나만 풀스크린
             float cw = canvasRect.rect.width;
-            float ch = canvasRect.
-// (이하 생략)
+            float ch = canvasRect.rect.height;
+
+            topPanel.rectTransform
+                    .SetInsetAndSizeFromParentEdge(RectTransform.Edge.Top, 0, ch);
+            topPanel.rectTransform
+                    .SetInsetAndSizeFromParentEdge(RectTransform.Edge.Left, 0, cw);
+
+            topPanel.raycastTarget = true;
+            topPanel.gameObject.SetActive(true);
+            topPanel.transform.SetAsLastSibling();
+        }
+
+        // 4) 스텝 시작 이벤트
+        step.onStepStart.Invoke();
+
+        // 5) 완료 시 연결
+        step.onStepComplete.RemoveAllListeners();
+        step.onStepComplete.AddListener(() => ShowStep(i + 1));
+    }
+
+// ...
+
+public void StepCombineUse()
+    {
+        // 카드 드래그 활성화
+        EnableCardDrag();
+        
+        // 턴 종료 버튼 비활성화
+        endTurnButton.interactable = false;
+
+        // 카드 합성 활성화
+        EnableCardCombine();
+        
+        // 카드 합성 확인 후 콜백 호출
+        HandManager.OnCardCombinedNew += OnTutorialCardCombined;
+    }
+
+// ...
+
+private void OnTutorialCombinedCardUsed(CardData data)
+    {
+        CombatManager.Instance.OnPlayerSkillUsed -= OnTutorialCombinedCardUsed;
+        if (currentOverlay != null) Destroy(currentOverlay);
+
+        // 스텝 완료 이후 다음 스텝으로
+        steps[currentStep].onStepComplete.Invoke();
+    }
 ```

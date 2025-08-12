@@ -1,24 +1,16 @@
 # 🧭 Setting/UI — 공통 UI 매니저
 
-씬 전역 UI의 표시/숨김, 패널 정렬/정면 고정 등을 제어합니다.
-
----
-
-## 📦 폴더 구조
-```
- ├── UIManager.cs
-```
+공통 UI 매니저 모듈 설명입니다.
 
 ---
 
 ## ✨ 설계 특징 (Highlights)
-- Canvas sorting & 그룹 제어
-- 다른 시스템과의 느슨 결합 이벤트
+- (추가 예정)
 
 ---
 
 ## 🔁 핵심 흐름
-Show → Hide → Lock
+ShowPanel → HidePanel → Lock
 
 ---
 
