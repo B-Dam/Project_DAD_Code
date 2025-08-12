@@ -1,47 +1,42 @@
-# Battle/Data — 전투 데이터
+# 📁 Data — 공통 데이터(SO)
 
-전투에 사용되는 데이터 객체와 로더(캐릭터, 카드, 환경효과 등).
+대화/퀘스트/캐릭터 등 **프로젝트 전역 ScriptableObject** 모음입니다.
 
 ---
 
-## 📂 폴더 내 스크립트
- ├── CardData.cs
+## 📦 폴더 구조
+```
  ├── CharacterData.cs
- ├── DataManager.cs
- ├── Editor/SkillDataImporter.cs
- ├── Enums/OwnerType.cs
- ├── EnvironmentEffect.cs
-
----
-
-## 🔎 대표 스크립트: `DataManager.cs` 예시
-
-```csharp
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using System.Linq;
-using UnityEngine.SceneManagement;
-
-public class DataManager : MonoBehaviour
-{
-    public static DataManager Instance { get; private set; }
-
-    [Header("SO 로드")]
-    [SerializeField] CharacterDataSO defaultEnemy;
-
-    [Serializable]
-    public class SaveMetadata
-    {
-        public DateTime timestamp; // 저장용 시간
-        public string chapterName; // 저장용 챕터 이름
-        public string questName;   // 저장용 퀘스트 이름
-    }
-    public CharacterDataSO playerData { get; private set; }
-    public CharacterDataSO enemyData { get; private set; }
-    public CardData[] allCards { get; private set; }   // 모든 카드 SO
-
+ ├── CsvDataBase.cs
+ ├── DialogueData.cs
+ ├── QuestData.cs
 ```
 
-> 위 코드는 핵심 로직의 일부 예시입니다. 실제 구현은 프로젝트 원본 파일을 참고하세요.
+---
+
+## ✨ 설계 특징 (Highlights)
+- CSV 파이프라인과 연결되는 베이스 클래스
+- Dialogue/Quest 데이터 구조화
+
+---
+
+## 🔁 핵심 흐름
+Load → Query → Consume
+
+---
+
+## 🧩 대표 스크립트 & 핵심 코드 예시 — `DialogueData.cs`
+```csharp
+public class DialogueData
+{
+    public string dialogueId;
+    public int speakerId;
+    public string dialogueText;
+
+    public DialogueData(string[] f)
+    {
+        dialogueId      = f[0];
+        speakerId       = int.Parse(f[1]);
+        dialogueText    = f[2];
+    }
+```
